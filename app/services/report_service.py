@@ -39,8 +39,6 @@ def generate_weekly_report(
 
     counts_by_type: dict[str, int] = {}
     for event in events:
-        # NOTE: touching event.organization here triggers a lazy load per
-        # row since the relationship isn't eagerly loaded above.
         _ = event.organization.plan
         counts_by_type[event.event_type] = counts_by_type.get(event.event_type, 0) + 1
 
@@ -53,3 +51,17 @@ def generate_weekly_report(
     }
     cache.set_report(org_id, period_key, report)
     return report
+
+
+def record_event_and_invalidate(db: Session, event: Event, cache: CacheService | None = None) -> None:
+    """Persist a new event and invalidate the org's cached reports inline.
+
+    Invalidating here - synchronously with the write - closes the race
+    window between a write landing and the cache_invalidation_worker's next
+    sweep (up to 5 minutes). The worker sweep still runs as a safety net for
+    invalidation paths we haven't wired up yet (e.g. bulk imports).
+    """
+    cache = cache or CacheService()
+    db.add(event)
+    db.flush()
+    cache.invalidate_org(event.org_id)
