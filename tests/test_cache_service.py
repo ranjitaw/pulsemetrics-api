@@ -1,5 +1,9 @@
 """Tests for CacheService."""
+from datetime import datetime, timezone
+
+from app.models.event import Event
 from app.services.cache_service import CacheService
+from app.services.report_service import generate_weekly_report
 
 
 def test_set_and_get_report_round_trips(fake_redis):
@@ -26,3 +30,33 @@ def test_invalidate_org_removes_only_that_orgs_keys(fake_redis):
 
     assert cache.get_report("org_123", "week1") is None
     assert cache.get_report("org_456", "week1") == {"total_events": 2}
+
+
+def test_report_reflects_new_events_written_after_first_read(db_session, sample_org, fake_redis):
+    """Regression test for the stale-cache race: a write immediately after a
+    cached read must not be masked until the invalidation worker's next
+    sweep. See PR #101.
+    """
+    cache = CacheService(redis_client=fake_redis)
+    period_start = datetime(2026, 5, 1, tzinfo=timezone.utc)
+    period_end = datetime(2026, 5, 8, tzinfo=timezone.utc)
+
+    generate_weekly_report(db_session, sample_org.id, period_start, period_end, cache=cache)
+
+    db_session.add(
+        Event(
+            org_id=sample_org.id,
+            event_type="signup",
+            payload={},
+            occurred_at=datetime(2026, 5, 2, tzinfo=timezone.utc),
+            received_at=datetime(2026, 5, 2, tzinfo=timezone.utc),
+        )
+    )
+    db_session.commit()
+
+    # Without synchronous invalidation on write, this would still return the
+    # cached report with total_events == 0, hiding the new signup event for
+    # up to the worker's 5-minute poll interval.
+    report = generate_weekly_report(db_session, sample_org.id, period_start, period_end, cache=cache)
+
+    assert report["total_events"] == 1
