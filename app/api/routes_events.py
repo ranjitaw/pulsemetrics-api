@@ -1,6 +1,7 @@
 """Event ingestion endpoint."""
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends
@@ -10,8 +11,10 @@ from app.database import get_db
 from app.dependencies import get_org_id
 from app.models.event import Event
 from app.schemas.event_schemas import EventCreate, EventOut
+from app.services.report_service import record_event_and_invalidate
 from app.services.validation_service import validate_event_payload
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -31,7 +34,7 @@ def ingest_event(
         received_at=datetime.now(timezone.utc),
         source=body.source,
     )
-    db.add(event)
-    db.flush()
+    record_event_and_invalidate(db, event)
+    logger.info("invalidated report cache for org=%s after event write", org_id)
     db.refresh(event)
     return event

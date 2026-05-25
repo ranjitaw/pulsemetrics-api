@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 
 from app.models.event import Event
 from app.services.cache_service import CacheService
-from app.services.report_service import generate_weekly_report
+from app.services.report_service import generate_weekly_report, record_event_and_invalidate
 
 
 def test_set_and_get_report_round_trips(fake_redis):
@@ -43,15 +43,16 @@ def test_report_reflects_new_events_written_after_first_read(db_session, sample_
 
     generate_weekly_report(db_session, sample_org.id, period_start, period_end, cache=cache)
 
-    db_session.add(
-        Event(
-            org_id=sample_org.id,
-            event_type="signup",
-            payload={},
-            occurred_at=datetime(2026, 5, 2, tzinfo=timezone.utc),
-            received_at=datetime(2026, 5, 2, tzinfo=timezone.utc),
-        )
+    new_event = Event(
+        org_id=sample_org.id,
+        event_type="signup",
+        payload={},
+        occurred_at=datetime(2026, 5, 2, tzinfo=timezone.utc),
+        received_at=datetime(2026, 5, 2, tzinfo=timezone.utc),
     )
+    # Go through the same write path the API uses, since that's what
+    # actually triggers synchronous invalidation.
+    record_event_and_invalidate(db_session, new_event, cache=cache)
     db_session.commit()
 
     # Without synchronous invalidation on write, this would still return the
