@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import JSON, String
+from sqlalchemy import JSON, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -11,6 +11,9 @@ from app.database import Base
 
 class WebhookEvent(Base):
     __tablename__ = "webhook_events"
+    __table_args__ = (
+        UniqueConstraint("provider", "external_id", name="uq_webhook_events_provider_external_id"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     provider: Mapped[str] = mapped_column(String(64), nullable=False)
