@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.models.event import Event
 from app.services.cache_service import CacheService
@@ -27,8 +27,14 @@ def generate_weekly_report(
     if cached is not None:
         return cached
 
+    # selectinload issues a single extra query (SELECT ... WHERE org_id IN
+    # (...)) instead of one lazy-load per event. We use selectinload rather
+    # than joinedload here specifically because joinedload would produce a
+    # cartesian product against the events rows for large weeks - the org
+    # row would be repeated once per event in the result set.
     events = (
         db.query(Event)
+        .options(selectinload(Event.organization))
         .filter(
             Event.org_id == org_id,
             Event.occurred_at >= period_start,
@@ -39,7 +45,6 @@ def generate_weekly_report(
 
     counts_by_type: dict[str, int] = {}
     for event in events:
-        _ = event.organization.plan
         counts_by_type[event.event_type] = counts_by_type.get(event.event_type, 0) + 1
 
     report = {
