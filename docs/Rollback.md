@@ -62,6 +62,14 @@ fix/rollback):
    note referencing the status page - don't rely on the status page alone
    for our largest accounts.
 
+## Related runbooks
+
+- On-call primary runbook (PagerDuty > Runbooks > PulseMetrics API)
+- Incident communication guide (#pulsemetrics-incidents topic)
+
+This document is linked from both of the above so on-call engineers land
+here directly from a page, rather than having to know it exists.
+
 ## Post-incident
 
 File a postmortem within 2 business days using the standard template.
