@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     webhook_signing_secret: str = "change-me"
     report_cache_prefix: str = "report:weekly"
     max_event_payload_bytes: int = 32_768
+    event_future_skew_tolerance_seconds: int = 120
 
     @property
     def is_production(self) -> bool:
