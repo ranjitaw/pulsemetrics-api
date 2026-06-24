@@ -62,6 +62,15 @@ Reports are cached for 5 minutes per org/period; a write to that org
 invalidates the cache immediately, so you'll never read data that's older
 than your own most recent write.
 
+## Pagination
+
+Endpoints that can return large result sets (currently none of the
+endpoints below - flagged here in advance of the upcoming `GET /v1/events`
+list endpoint) will use cursor-based pagination: a `cursor` query param in
+the response's `next_cursor` field, not a `page` number. Page-number
+pagination breaks under concurrent writes because rows can shift between
+pages; a cursor doesn't have that problem.
+
 ## POST /v1/webhooks/{provider}
 
 Receive a webhook from an upstream provider (`stripe`, `segment`, etc).
