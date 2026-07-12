@@ -12,11 +12,7 @@ from app.dependencies import get_org_id
 from app.models.event import Event
 from app.schemas.event_schemas import EventCreate, EventOut
 from app.services.report_service import record_event_and_invalidate
-from app.services.validation_service import (
-    validate_event_occurred_at,
-    validate_event_payload,
-    validate_required_payload_fields,
-)
+from app.services.validation_service import EventContext, run_validation
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -28,15 +24,9 @@ def ingest_event(
     db: Session = Depends(get_db),
     org_id: str = Depends(get_org_id),
 ) -> Event:
-    # Validate the full payload before touching the database. `db` here is
-    # already a live session/connection from the pool (see get_db); running
-    # validation first means a malformed request never holds a pooled
-    # connection open while we build the ORM object and validation error
-    # messages, which matters under load when the pool is close to its
-    # ceiling.
-    validate_event_payload(body.payload)
-    validate_event_occurred_at(body.event_type, body.occurred_at)
-    validate_required_payload_fields(body.event_type, body.payload)
+    # Validate before touching the database - see the note in the rule
+    # chain module about why validation happens ahead of the DB session.
+    run_validation(EventContext(event_type=body.event_type, occurred_at=body.occurred_at, payload=body.payload))
 
     event = Event(
         org_id=org_id,
