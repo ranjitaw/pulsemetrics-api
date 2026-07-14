@@ -1,3 +1,5 @@
+> **Note:** This repository is a test fixture used only to demo GitHub search for the [Open Ledger](https://github.com/ranjitaw/open-ledger) Slack hackathon project (Slack "Agent for Good" track). It is not an active or production service — the code, PRs, and commit history here exist purely to give Open Ledger's GitHub integration real data to search against.
+
 # PulseMetrics API
 
 Backend service for the PulseMetrics analytics platform: event ingestion,
